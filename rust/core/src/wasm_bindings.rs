@@ -536,6 +536,8 @@ impl IDKitConfigWasm {
                         "staging" => crate::bridge::Environment::Staging,
                         _ => crate::bridge::Environment::Production,
                     }),
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
             Self::CreateSession {
@@ -570,6 +572,8 @@ impl IDKitConfigWasm {
                         "staging" => crate::bridge::Environment::Staging,
                         _ => crate::bridge::Environment::Production,
                     }),
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
             Self::ProveSession {
@@ -607,6 +611,8 @@ impl IDKitConfigWasm {
                         "staging" => crate::bridge::Environment::Staging,
                         _ => crate::bridge::Environment::Production,
                     }),
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
         }

@@ -43,6 +43,18 @@ public final class IDKitBuilder {
         self.inner = inner
     }
 
+    public func matchIdentityAttributes(
+        _ attributes: [IdentityAttribute],
+        requireFaceAuth: Bool
+    ) -> IDKitBuilder {
+        IDKitBuilder(
+            inner: inner.matchIdentityAttributes(
+                identityAttributes: attributes,
+                requireFaceAuth: requireFaceAuth
+            )
+        )
+    }
+
     // TODO: Re-enable when World ID 4.0 is live
     // public func constraints(_ constraints: ConstraintNode) throws -> IDKitRequest {
     //     let request = try inner.constraints(constraints: constraints)

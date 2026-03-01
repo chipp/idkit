@@ -7,7 +7,8 @@ use crate::{
     error::{AppError, Error, Result},
     protocol_types::ProofRequest,
     types::{
-        AppId, BridgeResponseV1, BridgeUrl, IDKitResult, ResponseItem, RpContext, VerificationLevel,
+        AppId, BridgeResponseV1, BridgeUrl, IDKitResult, IdentityAttribute, ResponseItem,
+        RpContext, VerificationLevel,
     },
     ConstraintNode, Signal,
 };
@@ -100,6 +101,15 @@ struct BridgeRequestPayload {
 
     /// Environment for the bridge request
     environment: Environment,
+
+    /// Optional identity attribute matching criteria
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_attributes: Option<Vec<IdentityAttribute>>,
+
+    /// Whether face authentication is required for identity attestation
+    /// Only serialized when `true`; absent from the wire when `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    require_face_auth: Option<bool>,
 }
 
 /// Encrypted payload sent to/from the bridge
@@ -147,6 +157,7 @@ enum BridgeResponseItem {
         proof: ZeroKnowledgeProof,
         nullifier: FieldElement,
         expires_at_min: u64,
+        identity_attestation: Option<bool>,
     },
     #[serde(rename = "3.0")]
     V3 {
@@ -154,6 +165,7 @@ enum BridgeResponseItem {
         proof: String,
         merkle_root: String,
         nullifier: String,
+        identity_attestation: Option<bool>,
     },
 }
 
@@ -181,6 +193,7 @@ impl BridgeResponseItem {
                 proof,
                 nullifier,
                 expires_at_min,
+                identity_attestation,
             } => {
                 // If it's a session proofs, we include the action in the session_nullifier
                 // as the `WorldIDVerifier.sol` contract expects it that way.
@@ -195,6 +208,7 @@ impl BridgeResponseItem {
                         session_nullifier: vec![nullifier.to_string(), action.to_string()],
                         issuer_schema_id,
                         expires_at_min,
+                        identity_attestation,
                     }
                 } else {
                     ResponseItem::V4 {
@@ -207,6 +221,7 @@ impl BridgeResponseItem {
                         nullifier: nullifier.to_string(),
                         issuer_schema_id,
                         expires_at_min,
+                        identity_attestation,
                     }
                 }
             }
@@ -216,12 +231,14 @@ impl BridgeResponseItem {
                 proof,
                 merkle_root,
                 nullifier,
+                identity_attestation,
             } => ResponseItem::V3 {
                 identifier,
                 signal_hash,
                 proof,
                 merkle_root,
                 nullifier,
+                identity_attestation,
             },
         }
     }
@@ -235,6 +252,7 @@ impl BridgeResponseV1 {
             proof: self.proof,
             merkle_root: self.merkle_root,
             nullifier: self.nullifier_hash,
+            identity_attestation: None,
         }
     }
 }
@@ -334,6 +352,10 @@ pub struct BridgeConnectionParams {
     pub override_connect_base_url: Option<String>,
     /// Optional environment override (defaults to Production when not specified)
     pub environment: Option<Environment>,
+    /// Optional identity attribute matching criteria for identity attestation
+    pub identity_attributes: Option<Vec<IdentityAttribute>>,
+    /// Whether face authentication is required for identity attestation
+    pub require_face_auth: Option<bool>,
 }
 
 /// A World ID verification connection to the bridge
@@ -358,6 +380,8 @@ pub struct BridgeConnection {
     override_connect_base_url: Option<String>,
     /// Resolved environment for this connection
     environment: Environment,
+    /// Value for `t` parameter of the connect url
+    request_type: &'static str,
 }
 
 /// Builds a `BridgeRequestPayload` from params without connecting to the bridge.
@@ -421,6 +445,8 @@ pub fn build_request_payload(params: &BridgeConnectionParams) -> Result<serde_js
         signal: legacy_signal_hash,
         allow_legacy_proofs: params.allow_legacy_proofs,
         environment: params.environment.unwrap_or_default(),
+        identity_attributes: params.identity_attributes.clone(),
+        require_face_auth: params.require_face_auth,
     };
 
     serde_json::to_value(&payload).map_err(Into::into)
@@ -500,6 +526,12 @@ impl BridgeConnection {
             _ => None,
         };
 
+        let request_type = if params.identity_attributes.is_some() {
+            "identity"
+        } else {
+            "wld"
+        };
+
         Ok(Self {
             bridge_url,
             #[cfg(feature = "native-crypto")]
@@ -513,6 +545,7 @@ impl BridgeConnection {
             nonce: params.rp_context.nonce.clone(),
             override_connect_base_url: params.override_connect_base_url,
             environment: params.environment.unwrap_or_default(),
+            request_type,
         })
     }
 
@@ -532,8 +565,9 @@ impl BridgeConnection {
             .unwrap_or("https://world.org/verify");
 
         format!(
-            "{}?t=wld&i={}&k={}{}",
+            "{}?t={}&i={}&k={}{}",
             base_url,
+            self.request_type,
             self.request_id,
             urlencoding::encode(&key_b64),
             bridge_param
@@ -748,6 +782,8 @@ impl IDKitConfig {
                     signal_hashes,
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     environment: config.environment,
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
             Self::CreateSession(config) => {
@@ -772,6 +808,8 @@ impl IDKitConfig {
                     signal_hashes,
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     environment: config.environment,
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
             Self::ProveSession { session_id, config } => {
@@ -798,6 +836,8 @@ impl IDKitConfig {
                     signal_hashes,
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     environment: config.environment,
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
         }
@@ -836,6 +876,8 @@ impl IDKitConfig {
                     signal_hashes,
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     environment: config.environment,
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
             Self::CreateSession(config) => {
@@ -859,6 +901,8 @@ impl IDKitConfig {
                     signal_hashes,
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     environment: config.environment,
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
             Self::ProveSession { session_id, config } => {
@@ -884,6 +928,8 @@ impl IDKitConfig {
                     signal_hashes,
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     environment: config.environment,
+                    identity_attributes: None,
+                    require_face_auth: None,
                 })
             }
         }
@@ -895,6 +941,8 @@ impl IDKitConfig {
 #[derive(uniffi::Object)]
 pub struct IDKitBuilder {
     config: IDKitConfig,
+    identity_attributes: Option<Vec<IdentityAttribute>>,
+    require_face_auth: Option<bool>,
 }
 
 #[cfg(feature = "ffi")]
@@ -906,6 +954,8 @@ impl IDKitBuilder {
     pub fn from_request(config: IDKitRequestConfig) -> Arc<Self> {
         Arc::new(Self {
             config: IDKitConfig::Request(config),
+            identity_attributes: None,
+            require_face_auth: None,
         })
     }
 
@@ -915,6 +965,8 @@ impl IDKitBuilder {
     pub fn from_create_session(config: IDKitSessionConfig) -> Arc<Self> {
         Arc::new(Self {
             config: IDKitConfig::CreateSession(config),
+            identity_attributes: None,
+            require_face_auth: None,
         })
     }
 
@@ -924,6 +976,21 @@ impl IDKitBuilder {
     pub fn from_prove_session(session_id: String, config: IDKitSessionConfig) -> Arc<Self> {
         Arc::new(Self {
             config: IDKitConfig::ProveSession { session_id, config },
+            identity_attributes: None,
+            require_face_auth: None,
+        })
+    }
+
+    #[must_use]
+    pub fn match_identity_attributes(
+        self: Arc<Self>,
+        identity_attributes: Vec<IdentityAttribute>,
+        require_face_auth: bool,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            config: self.config.clone(),
+            identity_attributes: Some(identity_attributes),
+            require_face_auth: Some(require_face_auth),
         })
     }
 
@@ -942,7 +1009,11 @@ impl IDKitBuilder {
                 details: format!("Failed to create runtime: {e}"),
             })?;
 
-        let params = self.config.to_params((*constraints).clone())?;
+        let mut params = self.config.to_params((*constraints).clone())?;
+        params
+            .identity_attributes
+            .clone_from(&self.identity_attributes);
+        params.require_face_auth = self.require_face_auth;
 
         let inner = runtime
             .block_on(BridgeConnection::create(params))
@@ -969,7 +1040,11 @@ impl IDKitBuilder {
                 details: format!("Failed to create runtime: {e}"),
             })?;
 
-        let params = self.config.to_params_from_preset(preset)?;
+        let mut params = self.config.to_params_from_preset(preset)?;
+        params
+            .identity_attributes
+            .clone_from(&self.identity_attributes);
+        params.require_face_auth = self.require_face_auth;
 
         let inner = runtime
             .block_on(BridgeConnection::create(params))
@@ -1152,6 +1227,8 @@ mod tests {
             proof_request,
             allow_legacy_proofs: false,
             environment: Environment::Production,
+            identity_attributes: None,
+            require_face_auth: None,
         };
 
         let json = serde_json::to_string(&payload).unwrap();
@@ -1264,6 +1341,8 @@ mod tests {
             legacy_verification_level,
             legacy_signal: legacy_signal.unwrap_or_default(),
             bridge_url: None,
+            identity_attributes: None,
+            require_face_auth: None,
             allow_legacy_proofs: false,
             signal_hashes: compute_signal_hashes(&constraints),
             override_connect_base_url: None,
