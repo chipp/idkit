@@ -3,6 +3,7 @@
 #[cfg(feature = "ffi")]
 use crate::preset::Preset;
 use crate::{
+    challenge::ChallengeType,
     crypto::{base64_decode, base64_encode, decrypt, encrypt},
     error::{AppError, Error, Result},
     types::{
@@ -112,6 +113,11 @@ struct BridgeRequestPayload {
 
     /// Environment for the bridge request
     environment: Environment,
+
+    /// Optional list of challenge items (face image, username, etc.)
+    /// Forwarded verbatim to World App for challenge-based verification flows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    challenges: Option<Vec<ChallengeType>>,
 }
 
 /// Encrypted payload sent to/from the bridge
@@ -259,6 +265,8 @@ pub struct BridgeConnectionParams {
     pub return_to: Option<String>,
     /// Optional environment override (defaults to Production when not specified)
     pub environment: Option<Environment>,
+    /// Optional challenge items forwarded to World App
+    pub challenges: Option<Vec<ChallengeType>>,
 }
 
 /// A helper struct to cache the signal hashes of a request
@@ -420,6 +428,7 @@ pub fn build_request_payload(params: &BridgeConnectionParams) -> Result<serde_js
         signal: legacy_signal_hash,
         allow_legacy_proofs: params.allow_legacy_proofs,
         environment: params.environment.unwrap_or_default(),
+        challenges: params.challenges.clone(),
     };
 
     serde_json::to_value(&payload).map_err(Into::into)
@@ -763,6 +772,8 @@ pub struct IDKitRequestConfig {
     pub environment: Option<Environment>,
     /// Optional connect URL mode (defaults to `Default`)
     pub connect_url_mode: Option<ConnectUrlMode>,
+    /// Optional challenge items forwarded to World App (e.g. username, face image)
+    pub challenges: Option<Vec<ChallengeType>>,
 }
 
 /// Configuration for session requests (no action field, v4 only)
@@ -843,6 +854,7 @@ impl IDKitConfig {
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     return_to: config.return_to.clone(),
                     environment: config.environment,
+                    challenges: None,
                 })
             }
             Self::CreateSession(config) => {
@@ -867,6 +879,7 @@ impl IDKitConfig {
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     return_to: config.return_to.clone(),
                     environment: config.environment,
+                    challenges: None,
                 })
             }
             Self::ProveSession { session_id, config } => {
@@ -893,6 +906,7 @@ impl IDKitConfig {
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     return_to: config.return_to.clone(),
                     environment: config.environment,
+                    challenges: None,
                 })
             }
         }
@@ -937,6 +951,7 @@ impl IDKitConfig {
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     return_to: config.return_to.clone(),
                     environment: config.environment,
+                    challenges: config.challenges.clone(),
                 })
             }
             Self::CreateSession(config) => {
@@ -960,6 +975,7 @@ impl IDKitConfig {
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     return_to: config.return_to.clone(),
                     environment: config.environment,
+                    challenges: None,
                 })
             }
             Self::ProveSession { session_id, config } => {
@@ -985,6 +1001,7 @@ impl IDKitConfig {
                     override_connect_base_url: config.override_connect_base_url.clone(),
                     return_to: config.return_to.clone(),
                     environment: config.environment,
+                    challenges: None,
                 })
             }
         }
@@ -1293,6 +1310,7 @@ mod tests {
             proof_request: Some(proof_request),
             allow_legacy_proofs: false,
             environment: Environment::Production,
+            challenges: None,
         };
 
         let json = serde_json::to_string(&payload).unwrap();
@@ -1484,6 +1502,7 @@ mod tests {
             override_connect_base_url: None,
             return_to: None,
             environment: Some(Environment::Production),
+            challenges: None,
         };
 
         let payload = build_request_payload(&params).unwrap();
@@ -1522,6 +1541,7 @@ mod tests {
             override_connect_base_url: None,
             return_to: None,
             environment: Some(Environment::Production),
+            challenges: None,
         };
 
         let payload = build_request_payload(&params).unwrap();
@@ -1584,6 +1604,7 @@ mod tests {
             override_connect_base_url: None,
             return_to: None,
             environment: None,
+            challenges: None,
         };
 
         let payload = build_native_v1_payload(&params).unwrap();

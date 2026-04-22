@@ -548,13 +548,13 @@ impl IDKitConfigWasm {
                     legacy_signal: String::new(),
                     bridge_url,
                     allow_legacy_proofs: *allow_legacy_proofs,
-
                     override_connect_base_url: override_connect_base_url.clone(),
                     return_to: return_to.clone(),
                     environment: environment.as_deref().map(|e| match e {
                         "staging" => crate::bridge::Environment::Staging,
                         _ => crate::bridge::Environment::Production,
                     }),
+                    challenges: None,
                 })
             }
             Self::CreateSession {
@@ -585,13 +585,13 @@ impl IDKitConfigWasm {
                     legacy_signal: String::new(),
                     bridge_url,
                     allow_legacy_proofs: false,
-
                     override_connect_base_url: override_connect_base_url.clone(),
                     return_to: return_to.clone(),
                     environment: environment.as_deref().map(|e| match e {
                         "staging" => crate::bridge::Environment::Staging,
                         _ => crate::bridge::Environment::Production,
                     }),
+                    challenges: None,
                 })
             }
             Self::ProveSession {
@@ -625,13 +625,13 @@ impl IDKitConfigWasm {
                     legacy_signal: String::new(),
                     bridge_url,
                     allow_legacy_proofs: false,
-
                     override_connect_base_url: override_connect_base_url.clone(),
                     return_to: return_to.clone(),
                     environment: environment.as_deref().map(|e| match e {
                         "staging" => crate::bridge::Environment::Staging,
                         _ => crate::bridge::Environment::Production,
                     }),
+                    challenges: None,
                 })
             }
         }

@@ -52,7 +52,8 @@ func idkitEntrypoints() throws {
         overrideConnectBaseUrl: nil,
         returnTo: nil,
         environment: nil,
-        connectUrlMode: nil
+        connectUrlMode: nil,
+        challenges: nil
     )
 
     // TODO: Re-enable when World ID 4.0 is live

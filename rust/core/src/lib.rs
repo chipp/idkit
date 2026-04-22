@@ -12,6 +12,7 @@
 
 #[cfg(any(feature = "bridge", feature = "bridge-wasm"))]
 pub mod bridge;
+pub mod challenge;
 pub mod constraints;
 pub mod crypto;
 pub mod error;
@@ -32,6 +33,14 @@ pub use constraints::ConstraintNode;
 pub use crypto::CryptoKey;
 pub use error::{Error, Result};
 pub use preset::Preset;
+pub use challenge::{
+    ChallengeConfig, ChallengeError, ChallengeErrorCode, ChallengePayload, ChallengeResponse,
+    ChallengeResponseType, ChallengeType, ChallengeVerificationProofData,
+    ChallengeVerificationResult, DeepFaceResponseData, ExpectedUsernameValues,
+    FaceImageChallengeData, FaceImageEncryption, RequestType, SiweProof, UsernameField,
+    WorldAppUsernameChallengeData, WorldAppUsernameResponseData, WorldIDProof,
+    WorldIdSuccessResult,
+};
 pub use types::{
     AppId, BridgeResponseV1, BridgeUrl, CredentialRequest, CredentialType, IDKitResult,
     ResponseItem, RpContext, Signal, VerificationLevel,
