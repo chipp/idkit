@@ -1234,15 +1234,6 @@ impl IDKitRequestWrapper {
         self.poll_status_once()
     }
 
-    /// Polls the request asynchronously, for use in Rust async contexts.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the bridge request fails.
-    pub async fn poll(&self) -> Result<Status> {
-        self.inner.poll_for_status().await
-    }
-
     /// Polls the request exactly once for updates.
     pub fn poll_status_once(&self) -> StatusWrapper {
         match self.runtime.block_on(self.inner.poll_for_status()) {
@@ -1256,6 +1247,13 @@ impl IDKitRequestWrapper {
                 }
             }
         }
+    }
+}
+
+#[cfg(feature = "ffi")]
+impl IDKitRequestWrapper {
+    pub async fn poll(&self) -> Result<Status> {
+        self.inner.poll_for_status().await
     }
 }
 
