@@ -3,7 +3,7 @@
 #[cfg(feature = "ffi")]
 use crate::preset::Preset;
 use crate::{
-    challenge::ChallengeType,
+    challenge::{ChallengeConfig, ChallengeType, RequestType, WorldIDProof},
     crypto::{base64_decode, base64_encode, decrypt, encrypt},
     error::{AppError, Error, Result},
     types::{
@@ -414,6 +414,23 @@ pub fn build_request_payload(params: &BridgeConnectionParams) -> Result<serde_js
         })
         .transpose()?;
 
+    // When challenges are present, use ChallengeConfig format expected by World App's DeepFace flow
+    if let Some(challenges) = &params.challenges {
+        let action = action_str.unwrap_or_default();
+        let config = ChallengeConfig {
+            id: uuid::Uuid::new_v4().to_string(),
+            request_type: RequestType::DeepFace,
+            world_id_proof: WorldIDProof {
+                app_id: params.app_id.as_str().to_string(),
+                action,
+                signal: params.legacy_signal.clone(),
+                verification_level: params.legacy_verification_level,
+            },
+            challenges: challenges.clone(),
+        };
+        return serde_json::to_value(&config).map_err(Into::into);
+    }
+
     // For backwards compatibility we hash the signal
     let legacy_signal_hash =
         crate::crypto::hash_signal(&Signal::from_string(params.legacy_signal.clone()));
@@ -428,7 +445,7 @@ pub fn build_request_payload(params: &BridgeConnectionParams) -> Result<serde_js
         signal: legacy_signal_hash,
         allow_legacy_proofs: params.allow_legacy_proofs,
         environment: params.environment.unwrap_or_default(),
-        challenges: params.challenges.clone(),
+        challenges: None,
     };
 
     serde_json::to_value(&payload).map_err(Into::into)
