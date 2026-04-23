@@ -418,13 +418,14 @@ pub fn build_request_payload(params: &BridgeConnectionParams) -> Result<serde_js
     if let Some(challenges) = &params.challenges {
         let action = action_str.unwrap_or_default();
         let id = uuid::Uuid::new_v4().to_string();
+        let signal = crate::crypto::hash_signal(&Signal::from_string(id.clone()));
         let config = ChallengeConfig {
             id: id.clone(),
             request_type: RequestType::DeepFace,
             world_id_proof: WorldIDProof {
                 app_id: params.app_id.as_str().to_string(),
                 action,
-                signal: id,
+                signal,
                 verification_level: params.legacy_verification_level,
             },
             challenges: challenges.clone(),
