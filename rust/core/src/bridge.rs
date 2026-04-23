@@ -491,7 +491,7 @@ impl BridgeConnection {
     ///
     /// Returns an error if the request cannot be created or the bridge call fails
     #[allow(dead_code, clippy::too_many_lines)]
-    pub(crate) async fn create(params: BridgeConnectionParams) -> Result<Self> {
+    pub async fn create(params: BridgeConnectionParams) -> Result<Self> {
         // Generate encryption key and IV
         #[cfg(feature = "native-crypto")]
         let (key_bytes, nonce_bytes) = crate::crypto::generate_key()?;
