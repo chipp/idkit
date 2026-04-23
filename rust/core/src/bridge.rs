@@ -417,13 +417,14 @@ pub fn build_request_payload(params: &BridgeConnectionParams) -> Result<serde_js
     // When challenges are present, use ChallengeConfig format expected by World App's DeepFace flow
     if let Some(challenges) = &params.challenges {
         let action = action_str.unwrap_or_default();
+        let id = uuid::Uuid::new_v4().to_string();
         let config = ChallengeConfig {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: id.clone(),
             request_type: RequestType::DeepFace,
             world_id_proof: WorldIDProof {
                 app_id: params.app_id.as_str().to_string(),
                 action,
-                signal: params.legacy_signal.clone(),
+                signal: id,
                 verification_level: params.legacy_verification_level,
             },
             challenges: challenges.clone(),
